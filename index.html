@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Pong wars | Koen van Gilst</title>
-    <link rel="canonical" href="https://pong-wars.koenvangilst.nl/" />
+    <title>Pong wars</title>
+    <link rel="canonical" href="https://shilingliang.com/pong-wars" />
     <style>
       html {
         height: 100%;
@@ -16,12 +16,13 @@
         justify-content: center;
         align-items: center;
         background: linear-gradient(to bottom, #172b36 0%, #d9e8e3 100%);
+        font-family: monospace;
       }
 
       #container {
         display: flex;
         width: min(100%, 70vh);
-        max-width: 600px;
+        max-width: 800px;
         align-items: center;
         flex-direction: column;
         height: 100%;
@@ -32,7 +33,7 @@
         border-radius: 4px;
         overflow: hidden;
         width: 100%;
-        margin-top: auto;
+        margin-top: 20px;
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
       }
 
@@ -55,193 +56,326 @@
       #made a {
         color: #172b36;
       }
+
+      .input-group {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 10px 0;
+      }
+
+      label {
+        color: #fff;
+        margin-right: 10px;
+      }
+
+      input[type="number"] {
+        padding: 10px;
+        border-radius: 5px;
+        border: none;
+        width: 70px;
+      }
+
+      .inputs-container {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        max-width: 300px; /* 或者任何其他适合的宽度 */
+      }
+
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin: 10px 0;
+      }
+
+
+      #startButton {
+        background-color: #114C5A;
+        color: #fff;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 20px 0;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      #startButton:hover {
+        background-color: #0c3946;
+      }
+
     </style>
   </head>
 
   <body>
     <div id="container">
-      <canvas id="pongCanvas" width="800" height="800"></canvas>
+      <div class="inputs-container">
+        <div class="input-group">
+          <label for="dayBalls">Day balls:</label>
+          <input type="number" id="dayBalls" name="dayBalls" min="0" value="1">
+        </div>
+        <div class="input-group">
+          <label for="nightBalls">Night balls:</label>
+          <input type="number" id="nightBalls" name="nightBalls" min="0" value="1">
+        </div>
+      </div>
+      <button id="startButton">Start Game</button>
+      <canvas id="pongCanvas" width="1500" height="1500"></canvas>
+      <div class="input-group">
+        <label for="speedControl">Speed:</label>
+        <input type="range" id="speedControl" name="speedControl" min="1" max="200" value="100">
+      </div>
       <div id="score"></div>
       <p id="made">
-        made by <a href="https://koenvangilst.nl">Koen van Gilst</a> | source on
-        <a href="https://github.com/vnglst/pong-wars">github</a>
+        made by <a href="https://koenvangilst.nl">Koen van Gilst</a> | modified by <a href="https://shilingliang.com">Shiling Liang</a> |source on
+        <a href="https://github.com/Shiling42/pong-wars">github</a>
       </p>
     </div>
-  </body>
+    <script>
+      // Source palette: https://twitter.com/AlexCristache/status/1738610343499157872
+      const colorPalette = {
+        ArcticPowder: "#F1F6F4",
+        MysticMint: "#D9E8E3",
+        Forsythia: "#FFC801",
+        DeepSaffron: "#FF9932",
+        NocturnalExpedition: "#114C5A",
+        OceanicNoir: "#172B36",
+      };
 
-  <script>
-    // Source palette: https://twitter.com/AlexCristache/status/1738610343499157872
-    const colorPalette = {
-      ArcticPowder: "#F1F6F4",
-      MysticMint: "#D9E8E3",
-      Forsythia: "#FFC801",
-      DeepSaffron: "#FF9932",
-      NocturnalExpedition: "#114C5A",
-      OceanicNoir: "#172B36",
-    };
+      // Idea for Pong wars: https://twitter.com/nicolasdnl/status/1749715070928433161
 
-    // Idea for Pong wars: https://twitter.com/nicolasdnl/status/1749715070928433161
+      const canvas = document.getElementById("pongCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreElement = document.getElementById("score");
 
-    const canvas = document.getElementById("pongCanvas");
-    const ctx = canvas.getContext("2d");
-    const scoreElement = document.getElementById("score");
+      const DAY_COLOR = colorPalette.MysticMint;
+      const DAY_BALL_COLOR = colorPalette.NocturnalExpedition;
 
-    const DAY_COLOR = colorPalette.MysticMint;
-    const DAY_BALL_COLOR = colorPalette.NocturnalExpedition;
+      const NIGHT_COLOR = colorPalette.NocturnalExpedition;
+      const NIGHT_BALL_COLOR = colorPalette.MysticMint;
 
-    const NIGHT_COLOR = colorPalette.NocturnalExpedition;
-    const NIGHT_BALL_COLOR = colorPalette.MysticMint;
+      const SQUARE_SIZE = 25;
 
-    const SQUARE_SIZE = 25;
+      const numSquaresX = canvas.width / SQUARE_SIZE;
+      const numSquaresY = canvas.height / SQUARE_SIZE;
 
-    const numSquaresX = canvas.width / SQUARE_SIZE;
-    const numSquaresY = canvas.height / SQUARE_SIZE;
+      const DAY_BALL_SPEED = { dx: 10 , dy: 10}; // 你可以自定义这些值
+      const NIGHT_BALL_SPEED = { dx: 10, dy: -10 }; // 你可以自定义这些值
 
-    let squares = [];
 
-    for (let i = 0; i < numSquaresX; i++) {
-      squares[i] = [];
-      for (let j = 0; j < numSquaresY; j++) {
-        squares[i][j] = i < numSquaresX / 2 ? DAY_COLOR : NIGHT_COLOR;
-      }
-    }
+      
+      let squares = [];
+      // 获取滑轨元素
+      const speedControl = document.getElementById('speedControl');
 
-    let x1 = canvas.width / 4;
-    let y1 = canvas.height / 2;
-    let dx1 = 12.5;
-    let dy1 = -12.5;
+      // 初始化一个变量来保存当前的速度因子
+      let speedFactor = 1;
 
-    let x2 = (canvas.width / 4) * 3;
-    let y2 = canvas.height / 2;
-    let dx2 = -12.5;
-    let dy2 = 12.5;
+      // 监听滑轨值的变化
+      speedControl.addEventListener('input', () => {
+        // 将滑轨值转换为速度因子，例如，可以使用一些函数来映射滑轨值到实际的速度因子
+        speedFactor = speedControl.value / 100;
+      });
 
-    let iteration = 0;
 
-    function drawBall(x, y, color) {
-      ctx.beginPath();
-      ctx.arc(x, y, SQUARE_SIZE / 2, 0, Math.PI * 2, false);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.closePath();
-    }
 
-    function drawSquares() {
       for (let i = 0; i < numSquaresX; i++) {
+        squares[i] = [];
         for (let j = 0; j < numSquaresY; j++) {
-          ctx.fillStyle = squares[i][j];
-          ctx.fillRect(
-            i * SQUARE_SIZE,
-            j * SQUARE_SIZE,
-            SQUARE_SIZE,
-            SQUARE_SIZE
-          );
+          squares[i][j] = i < numSquaresX / 2 ? DAY_COLOR : NIGHT_COLOR;
         }
       }
-    }
 
-    function randomNum(min, max) {
-      return Math.random() * (max - min) + min;
-    }
+      const n = 2; // Number of balls
+      let balls = [];
 
-    function updateSquareAndBounce(x, y, dx, dy, color) {
-      let updatedDx = dx;
-      let updatedDy = dy;
+      let animationFrameId = null; // 保存动画帧ID
+      
+      document.getElementById('startButton').addEventListener('click', () => {
+          const dayBallsCount = parseInt(document.getElementById('dayBalls').value, 10);
+          const nightBallsCount = parseInt(document.getElementById('nightBalls').value, 10);
+          const numSquaresX = canvas.width / SQUARE_SIZE;
+          const numSquaresY = canvas.height / SQUARE_SIZE;
 
-      // Check multiple points around the ball's circumference
-      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
-        let checkX = x + Math.cos(angle) * (SQUARE_SIZE / 2);
-        let checkY = y + Math.sin(angle) * (SQUARE_SIZE / 2);
+          resetSquares();
+          // 取消之前的动画帧请求
+          if (animationFrameId) {
+              cancelAnimationFrame(animationFrameId);
+          }
 
-        let i = Math.floor(checkX / SQUARE_SIZE);
-        let j = Math.floor(checkY / SQUARE_SIZE);
+          initializeBalls(dayBallsCount, nightBallsCount);
 
-        if (i >= 0 && i < numSquaresX && j >= 0 && j < numSquaresY) {
-          if (squares[i][j] !== color) {
-            squares[i][j] = color;
+          // 开始新的动画循环，并保存新的动画帧ID
+          animationFrameId = requestAnimationFrame(draw);
+      });
 
-            // Determine bounce direction based on the angle
-            if (Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle))) {
-              updatedDx = -updatedDx;
-            } else {
-              updatedDy = -updatedDy;
-            }
+      function initializeBalls(dayBallsCount, nightBallsCount) {
+          resetSquares(); // 重置 squares 数组
+          balls = []; // Clear previous balls
+          for (let i = 0; i < dayBallsCount; i++) {
+              balls.push(createBall(DAY_BALL_COLOR, DAY_COLOR));
+          }
+          for (let i = 0; i < nightBallsCount; i++) {
+              balls.push(createBall(NIGHT_BALL_COLOR, NIGHT_COLOR));
+          }
+      }
+      function resetSquares() {
+          // 清空 squares 数组
+          squares = [];
+
+          // 重新初始化 squares 数组，左半部分为 DAY_COLOR，右半部分为 NIGHT_COLOR
+          for (let i = 0; i < numSquaresX; i++) {
+              squares[i] = [];
+              for (let j = 0; j < numSquaresY; j++) {
+                  squares[i][j] = i < numSquaresX / 2 ? DAY_COLOR : NIGHT_COLOR;
+              }
+          }
+
+          // 重新绘制 squares
+          drawSquares();
+      }
+
+      function createBall(ballColor, teamColor) {
+        return {
+          x: randomNum(SQUARE_SIZE, canvas.width - SQUARE_SIZE),
+          y: randomNum(SQUARE_SIZE, canvas.height - SQUARE_SIZE),
+          dx: NIGHT_BALL_SPEED.dx,
+          dy: NIGHT_BALL_SPEED.dy,
+          color: ballColor,
+          team: teamColor
+        };
+      }
+
+      for (let i = 0; i < n; i++) {
+        balls.push({
+          x: canvas.width / 4 + (i * (canvas.width / 2) / n),
+          y: canvas.height / 2,
+          dx: 5 + i,
+          dy: -5 + i,
+          color: i % 2 === 0 ? DAY_BALL_COLOR : NIGHT_BALL_COLOR,
+          team: i % 2 === 0 ? DAY_COLOR : NIGHT_COLOR
+        });
+      }
+
+      function drawBall(x, y, color) {
+        ctx.beginPath();
+        ctx.arc(x, y, SQUARE_SIZE / 2, 0, Math.PI * 2, false);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      function drawSquares() {
+        for (let i = 0; i < numSquaresX; i++) {
+          for (let j = 0; j < numSquaresY; j++) {
+            ctx.fillStyle = squares[i][j];
+            ctx.fillRect(
+              i * SQUARE_SIZE,
+              j * SQUARE_SIZE,
+              SQUARE_SIZE,
+              SQUARE_SIZE
+            );
+          }
+        }
+      }
+
+      function randomNum(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function updateSquareAndBounce(x, y, dx, dy, color) {
+        let updatedDx = dx;
+        let updatedDy = dy;
+
+        // Check multiple points around the ball's circumference
+        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+          let checkX = x + Math.cos(angle) * (SQUARE_SIZE / 2);
+          let checkY = y + Math.sin(angle) * (SQUARE_SIZE / 2);
+
+          let i = Math.floor(checkX / SQUARE_SIZE);
+          let j = Math.floor(checkY / SQUARE_SIZE);
+
+          if (i >= 0 && i < numSquaresX && j >= 0 && j < numSquaresY) {
+            if (squares[i][j] !== color) {
+              squares[i][j] = color;
+
+              // Determine bounce direction based on the angle
+              if (Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle))) {
+                updatedDx = -updatedDx;
+              } else {
+                updatedDy = -updatedDy;
+              }
 
             // Add some randomness to the bounce to prevent the balls from getting stuck in a loop
             updatedDx += randomNum(-0.01, 0.01);
             updatedDy += randomNum(-0.01, 0.01);
+              
+            }
           }
         }
+
+        return { dx: updatedDx, dy: updatedDy };
       }
 
-      return { dx: updatedDx, dy: updatedDy };
-    }
-
-    function updateScoreElement() {
-      let dayScore = 0;
-      let nightScore = 0;
-      for (let i = 0; i < numSquaresX; i++) {
-        for (let j = 0; j < numSquaresY; j++) {
-          if (squares[i][j] === DAY_COLOR) {
-            dayScore++;
-          } else if (squares[i][j] === NIGHT_COLOR) {
-            nightScore++;
+      function updateScoreElement() {
+        let dayScore = 0;
+        let nightScore = 0;
+        for (let i = 0; i < numSquaresX; i++) {
+          for (let j = 0; j < numSquaresY; j++) {
+            if (squares[i][j] === DAY_COLOR) {
+              dayScore++;
+            } else if (squares[i][j] === NIGHT_COLOR) {
+              nightScore++;
+            }
           }
         }
+
+        scoreElement.textContent = `day ${dayScore} | night ${nightScore}`;
       }
 
-      scoreElement.textContent = `day ${dayScore} | night ${nightScore}`;
-    }
 
-    function checkBoundaryCollision(x, y, dx, dy) {
-      if (x + dx > canvas.width - SQUARE_SIZE / 2 || x + dx < SQUARE_SIZE / 2) {
-        dx = -dx;
+      function checkBoundaryCollision(x, y, dx, dy) {
+        // If the ball goes past the right edge, it reappears on the left edge.
+        if (x + dx > canvas.width) {
+          x = 0;
+        } else if (x + dx < 0) { // If the ball goes past the left edge, it reappears on the right edge.
+          x = canvas.width;
+        }
+
+        // If the ball goes past the bottom edge, it reappears at the top edge.
+        if (y + dy > canvas.height) {
+          y = 0;
+        } else if (y + dy < 0) { // If the ball goes past the top edge, it reappears at the bottom edge.
+          y = canvas.height;
+        }
+
+        return { x, y, dx, dy };
       }
-      if (
-        y + dy > canvas.height - SQUARE_SIZE / 2 ||
-        y + dy < SQUARE_SIZE / 2
-      ) {
-        dy = -dy;
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawSquares();
+
+        balls.forEach(ball => {
+          drawBall(ball.x, ball.y, ball.color);
+          let bounce = updateSquareAndBounce(ball.x, ball.y, ball.dx, ball.dy, ball.team);
+          ball.dx = bounce.dx; 
+          ball.dy = bounce.dy;
+
+          let boundary = checkBoundaryCollision(ball.x, ball.y, ball.dx*speedFactor, ball.dy*speedFactor);
+          ball.x = boundary.x + ball.dx*speedFactor; 
+          ball.y = boundary.y + ball.dy*speedFactor; 
+        });
+
+        updateScoreElement();
+        animationFrameId = requestAnimationFrame(draw);
       }
-
-      return { dx: dx, dy: dy };
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawSquares();
-
-      drawBall(x1, y1, DAY_BALL_COLOR);
-      let bounce1 = updateSquareAndBounce(x1, y1, dx1, dy1, DAY_COLOR);
-      dx1 = bounce1.dx;
-      dy1 = bounce1.dy;
-
-      drawBall(x2, y2, NIGHT_BALL_COLOR);
-      let bounce2 = updateSquareAndBounce(x2, y2, dx2, dy2, NIGHT_COLOR);
-      dx2 = bounce2.dx;
-      dy2 = bounce2.dy;
-
-      let boundary1 = checkBoundaryCollision(x1, y1, dx1, dy1);
-      dx1 = boundary1.dx;
-      dy1 = boundary1.dy;
-
-      let boundary2 = checkBoundaryCollision(x2, y2, dx2, dy2);
-      dx2 = boundary2.dx;
-      dy2 = boundary2.dy;
-
-      x1 += dx1;
-      y1 += dy1;
-      x2 += dx2;
-      y2 += dy2;
-
-      iteration++;
-      if (iteration % 1_000 === 0) console.log("interation", iteration);
-
-      updateScoreElement();
 
       requestAnimationFrame(draw);
-    }
-
-    requestAnimationFrame(draw);
-  </script>
-</html>
+    </script>
+  </html>
